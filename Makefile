@@ -23,7 +23,8 @@ BASIC_DUTIES = \
 	release \
 	profile
 
-QUALITY_DUTIES = \
+MULTI_DUTIES = \
+	build \
 	check-quality \
 	check-docs \
 	check-types \
@@ -50,6 +51,6 @@ check:
 $(BASIC_DUTIES):
 	@$(DUTY) $@ $(call args,$@)
 
-.PHONY: $(QUALITY_DUTIES)
-$(QUALITY_DUTIES):
+.PHONY: $(MULTI_DUTIES)
+$(MULTI_DUTIES):
 	@bash scripts/multirun.sh duty $@ $(call args,$@)

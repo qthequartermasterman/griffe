@@ -1,5 +1,5 @@
 [build-system]
-requires = ["pdm-pep517"]
+requires = ["pdm-pep517", "mypy"]
 build-backend = "pdm.pep517.api"
 
 [project]
@@ -54,6 +54,7 @@ Funding = "https://github.com/sponsors/pawamoy"
 griffe = "griffe.cli:main"
 
 [tool.pdm]
+build = "build.py"
 version = {use_scm = true}
 package-dir = "src"
 

@@ -5,7 +5,7 @@ import os
 import re
 import sys
 import tempfile
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from io import StringIO
 from pathlib import Path
 from typing import List, Optional, Pattern
@@ -180,14 +180,8 @@ def check_docs(ctx):
     ctx.run("mkdocs build -s", title="Building documentation", pty=PTY)
 
 
-@duty  # noqa: WPS231
-def check_types(ctx):  # noqa: WPS231
-    """
-    Check that the code is correctly typed.
-
-    Parameters:
-        ctx: The context instance (passed automatically).
-    """
+@contextmanager
+def pep582_mypy():  # noqa: WPS231
     # NOTE: the following code works around this issue:
     # https://github.com/python/mypy/issues/10633
 
@@ -228,9 +222,39 @@ def check_types(ctx):  # noqa: WPS231
         tmpconfig = Path(tmpdir, "mypy.ini")
         tmpconfig.write_text(newconfig)
 
+        local_dir = Path(".mypy")
+        if local_dir.is_symlink():
+            local_dir.unlink()
+        local_dir.symlink_to(tmpdir)
+
         # set MYPYPATH and run mypy
         os.environ["MYPYPATH"] = tmpdir
+
+        yield tmpconfig
+
+
+@duty
+def check_types(ctx):
+    """
+    Check that the code is correctly typed.
+
+    Parameters:
+        ctx: The context instance (passed automatically).
+    """
+    with pep582_mypy() as tmpconfig:
         ctx.run(f"mypy --config-file {tmpconfig} {PY_SRC}", title="Type-checking", pty=PTY)
+
+
+@duty
+def build(ctx):
+    """
+    Build a wheel.
+
+    Parameters:
+        ctx: The context instance (passed automatically).
+    """
+    with pep582_mypy():
+        ctx.run(f"pdm build --no-sdist -v --no-clean", title="Building wheel", pty=PTY)
 
 
 @duty(silent=True)
