@@ -1,5 +1,111 @@
 # Extensions
 
+To extract information from your Python source code or compiled module,
+Griffe tries to build an Abstract Syntax Tree by parsing the source
+with [`ast`][] utilities, and if the source code is not available
+(built-in or compiled module), Griffe imports the module and
+builds an object tree instead.
+
+Griffe then follows the [Visitor pattern](https://www.wikiwand.com/en/Visitor_pattern)
+to walk the tree and extract information.
+For ASTs, Griffe uses its [Visitor][griffe.agents.visitor] agent
+and for object trees, it uses its [Inspector][griffe.agents.inspector] agent.
+
+At each step of the walk through the tree, in depth-first order,
+both the visitor and inspector agents are able to run sub-visitors
+or sub-inspectors: visitors or inspectors that walk on a smaller,
+or more specific part of the tree. These sub-visitors and sub-inspectors
+are what we call **extensions**.
+
+The following flow chart shows an example of an AST visit.
+The tree is simplified: actual trees have a lot more nodes
+like `if/elif/else` nodes, `try/except/else/finally` nodes,
+[and many others][ast.AST].
+
+```mermaid
+flowchart TB
+
+M(Module definition) --- C(Class definition) & F(Function definition)
+C --- m(Function definition) & A(Variable assignment)
+```
+
+The following flow chart shows an example of an object tree inspection.
+The tree is simplified as well: [many more types of object are handled][griffe.agents.nodes.ObjectNode]. 
+
+```mermaid 
+flowchart TB
+
+M(Module) --- C(Class) & F(Function)
+C --- m(Method) & A(Attribute)
+```
+
+Now you can see in the following flow chart how extensions
+run as part of the visit/inspection:
+
+
+```mermaid
+flowchart TB
+
+a(Node a) --- b(Node b) & c(Node c)
+c --- d(Node d) & e(Node e)
+agent[Agent] -- 1. visits/inspects --> c
+agent[Agent] -- 2. runs extension --> ext[Extension]
+ext -- 3. visits/inspects --> c
+agent -- 4. moves to next node, etc. --> e
+
+style agent fill:#33f,color:#ccc
+style ext fill:#f33,color:#333
+```
+
+Extensions can be configured to run either:
+
+- before the agent starts handling the current node
+- after the agent has started handling the node,
+    but before it has handled its children
+- after the agent has started handling the node
+    and finished handling its children,
+    but before it has finished handling the node.
+- after the agent has finished handling the node and its children.
+
+For example, when encountering a class definition node, the agent will:
+
+1. run every extension configured to run before it starts handling the class
+1. start handling the class, instantiating a [`Class`][griffe.dataclasses.Class] object,
+    and updating its state to reference this class as "current" object
+1. run every extension configured to run before it starts handling the children
+1. handle the children (behavior is repeated for each child)
+1. run every extension configured to run after it has handled the children
+1. finish handling the node, updating back to its previous state,
+    referencing the class' parent as "current" object again
+1. run every extension configured to run after it has handled the node
+
+So the difference between *"after children"* and *"after all"* extensions
+is that the agent (which is made available to the extensions) is in a different state,
+holding a reference to either the object corresponding to the current node,
+or the object corresponding to the current node's parent.
+
+```mermaid
+flowchart TB
+
+a(Node a) --- b(Node b) & c(Node c)
+c --- d(Node d) & e(Node e)
+agent[Agent] --> ext_before_all[Exts]:::exts
+agent[Agent] -- starts handling --> c
+agent[Agent] --> ext_before_children[Exts]:::exts
+agent[Agent] --> ext_after_children[Exts]:::exts
+agent[Agent] -- finishes handling --> c
+agent[Agent] --> ext_after_all[Exts]:::exts
+ext_before_all & ext_before_children & ext_after_children & ext_after_all --> c
+agent --> e
+
+style agent fill:#33f,color:#ccc
+classDef exts fill:#f33,color:#333
+```
+
+```python exec="1"
+--8<-- "scripts/draw_svg.py"
+```
+
 You can pass extensions to the loader to augment its capacities:
 
 ```python

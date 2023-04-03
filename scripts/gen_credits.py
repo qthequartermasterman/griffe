@@ -105,6 +105,10 @@ def _render_credits() -> str:
         {{ dep_line(dep) }}
         {% endfor %}
 
+        ```bash exec="1" result="mermaid"
+        pipdeptree -p {{ prod_dependencies|map(attribute="name")|join(",") }} --mermaid 2>/dev/null | sed 's/flowchart TD/flowchart LR/'
+        ```
+
         ### Development dependencies
 
         Project | Summary | Version (accepted) | Version (last resolved) | License
@@ -112,6 +116,10 @@ def _render_credits() -> str:
         {% for dep in dev_dependencies -%}
         {{ dep_line(dep) }}
         {% endfor %}
+
+        ```bash exec="1" result="mermaid"
+        pipdeptree -p {{ dev_dependencies|map(attribute="name")|join(",") }} --mermaid 2>/dev/null | sed 's/flowchart TD/flowchart LR/'
+        ```
 
         {% if more_credits %}**[More credits from the author]({{ more_credits }})**{% endif %}
         """,
