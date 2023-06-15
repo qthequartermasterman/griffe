@@ -15,21 +15,26 @@ from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Callable, Union, cast
 
+from griffe.c3linear import merge
 from griffe.docstrings.parsers import Parser, parse
 from griffe.exceptions import AliasResolutionError, BuiltinModuleError, CyclicAliasError, NameResolutionError
+from griffe.expressions import Name
 from griffe.mixins import GetMembersMixin, ObjectAliasMixin, SerializationMixin, SetMembersMixin
+from griffe.logger import get_logger
 
 if TYPE_CHECKING:
     from griffe.collections import LinesCollection, ModulesCollection
     from griffe.docstrings.dataclasses import DocstringSection
     from griffe.expressions import Expression, Name
 
-
 # TODO: remove once Python 3.7 support is dropped
 if sys.version_info < (3, 8):
     from cached_property import cached_property
 else:
     from functools import cached_property
+
+
+logger = get_logger(__name__)
 
 
 class ParameterKind(enum.Enum):
@@ -332,6 +337,7 @@ class Object(GetMembersMixin, SetMembersMixin, ObjectAliasMixin, SerializationMi
         runtime: bool = True,
         docstring: Docstring | None = None,
         parent: Module | Class | None = None,
+        inherited: bool = False,
         lines_collection: LinesCollection | None = None,
         modules_collection: ModulesCollection | None = None,
     ) -> None:
@@ -352,12 +358,13 @@ class Object(GetMembersMixin, SetMembersMixin, ObjectAliasMixin, SerializationMi
         self.endlineno: int | None = endlineno
         self.docstring: Docstring | None = docstring
         self.parent: Module | Class | None = parent
-        self.members: dict[str, Object | Alias] = {}
+        self._members: dict[str, Object | Alias] = {}
         self.labels: set[str] = set()
         self.imports: dict[str, str] = {}
         self.exports: set[str] | list[str | Name] | None = None
         self.aliases: dict[str, Alias] = {}
         self.runtime: bool = runtime
+        self.inherited: bool = inherited
         self._lines_collection: LinesCollection | None = lines_collection
         self._modules_collection: ModulesCollection | None = modules_collection
 
@@ -427,6 +434,22 @@ class Object(GetMembersMixin, SetMembersMixin, ObjectAliasMixin, SerializationMi
         if isinstance(kind, str):
             kind = Kind(kind)
         return self.kind is kind
+
+    @property
+    def members(self) -> dict[str, Object | Alias]:
+        return self._members
+
+    @property
+    def declared_members(self) -> dict[str, Object | Alias]:
+        return {name: member for name, member in self._members.items() if not member.inherited}
+
+    @property
+    def inherited_members(self) -> dict[str, Object | Alias]:
+        return {name: member for name, member in self._members.items() if member.inherited}
+
+    def post_load(self) -> None:
+        for member in self._members.values():
+            member.post_load()
 
     @property
     def is_module(self) -> bool:
@@ -1391,6 +1414,35 @@ class Class(Object):
                     ],
                 )
             return Parameters()
+
+    @cached_property
+    def resolved_bases(self) -> list[Object | Alias]:
+        resolved = []
+        for base in self.bases:
+            if isinstance(base, str):
+                base_path = self.resolve(base)
+            else:  # name or expression
+                base_path = base.full
+            try:
+                resolved.append(self.modules_collection[base_path])
+            except KeyError:
+                logger.debug(f"Base class {base_path} is not loaded, it cannot be used to compute inherited members")
+        return resolved
+
+    def mro(self) -> list[Class]:
+        """Return a list of classes in order corresponding to Python's MRO."""
+        bases = self.resolved_bases
+        if not bases:
+            return []
+        return merge(*[base.mro() for base in bases], bases)  # type: ignore
+
+    def _inject_inherited_members(self) -> None:
+        for base in reversed(self.mro()):
+            self._members.update(base.declared_members)
+
+    def post_load(self) -> None:
+        self._inject_inherited_members()
+        super().post_load()
 
     def as_dict(self, **kwargs: Any) -> dict[str, Any]:  # type: ignore[override]
         """Return this class' data as a dictionary.

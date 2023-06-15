@@ -293,13 +293,14 @@ class ObjectNode:
     # low level stuff known to cause issues when resolving aliases
     exclude_specials = {"__builtins__", "__loader__", "__spec__"}
 
-    def __init__(self, obj: Any, name: str, parent: ObjectNode | None = None) -> None:
+    def __init__(self, obj: Any, name: str, parent: ObjectNode | None = None, inherited: bool = False) -> None:
         """Initialize the object.
 
         Arguments:
             obj: A Python object.
             name: The object's name.
             parent: The object's parent node.
+            inherited: Whether the member corresponding to this node was inherited from a base class.
         """
         try:
             obj = inspect.unwrap(obj)
@@ -313,6 +314,7 @@ class ObjectNode:
         self.obj: Any = obj
         self.name: str = name
         self.parent: ObjectNode | None = parent
+        self.inherited: bool = inherited
 
     def __repr__(self) -> str:
         return f"ObjectNode(name={self.name!r})"
@@ -360,7 +362,7 @@ class ObjectNode:
         children = []
         for name, member in inspect.getmembers(self.obj):
             if self._pick_member(name, member):
-                children.append(ObjectNode(member, name, parent=self))
+                children.append(ObjectNode(member, name, parent=self, inherited=name not in vars(self.obj)))
         return children
 
     @cached_property
