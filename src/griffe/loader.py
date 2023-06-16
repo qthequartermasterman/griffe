@@ -85,7 +85,6 @@ class GriffeLoader:
         *,
         submodules: bool = True,
         try_relative_path: bool = True,
-        post_process: bool = True,
     ) -> Module:
         """Load a module.
 
@@ -129,10 +128,7 @@ class GriffeLoader:
             except LoadingError as error:
                 logger.exception(str(error))  # noqa: TRY401
                 raise
-        loaded_module = self.modules_collection[module_name]  # type: ignore[index]
-        if post_process:
-            loaded_module.post_load()
-        return loaded_module
+        return self.modules_collection[module_name]  # type: ignore[index]
 
     def resolve_aliases(
         self,

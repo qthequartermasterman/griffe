@@ -287,7 +287,11 @@ class Inspector(BaseInspector):
         Parameters:
             node: The node to inspect.
         """
-        bases = [base.__name__ for base in node.obj.__bases__ if base is not object]
+        bases = []
+        for base in node.obj.__bases__:
+            if base is object:
+                continue
+            bases.append(f"{base.__module__}.{base.__name__}")
 
         class_ = Class(
             name=node.name,
