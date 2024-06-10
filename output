@@ -1,0 +1,30 @@
+[1msrc/griffe/agents/nodes/_runtime.py[0m:67: ObjectNode.is_cached_property:
+[33mAttribute value was changed[39m:
+  Old: None
+  New: is_cached_property
+
+[1msrc/griffe/cli.py[0m:326: dump([34mresolve_external[39m):
+[33mParameter default was changed[39m:
+  Old: False
+  New: None
+
+[1msrc/griffe/loader.py[0m:233: GriffeLoader.resolve_aliases([34mexternal[39m):
+[33mParameter default was changed[39m:
+  Old: False
+  New: None
+
+[1msrc/griffe/loader.py[0m:319: GriffeLoader.expand_wildcards([34mexternal[39m):
+[33mParameter default was changed[39m:
+  Old: False
+  New: None
+
+[1msrc/griffe/loader.py[0m:431: GriffeLoader.resolve_module_aliases([34mexternal[39m):
+[33mParameter default was changed[39m:
+  Old: False
+  New: None
+
+[1msrc/griffe/stats.py[0m:141: stats:
+[33mPublic object points to a different kind of object[39m:
+  Old: function
+  New: attribute
+
