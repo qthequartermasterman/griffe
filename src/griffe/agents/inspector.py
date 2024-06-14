@@ -24,15 +24,17 @@ from __future__ import annotations
 
 import ast
 from inspect import Parameter as SignatureParameter
-from inspect import Signature, cleandoc, getsourcelines
+from inspect import Signature, cleandoc, getsourcelines, signature
+from inspect import _empty as empty
 from inspect import signature as getsignature
-from typing import TYPE_CHECKING, Any, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from griffe.agents.nodes import ObjectNode
 from griffe.collections import LinesCollection, ModulesCollection
 from griffe.dataclasses import Alias, Attribute, Class, Docstring, Function, Module, Parameter, Parameters
 from griffe.enumerations import ObjectKind, ParameterKind
-from griffe.expressions import safe_get_annotation
+from griffe.expressions import Expr, safe_get_annotation
 from griffe.extensions.base import Extensions, load_extensions
 from griffe.importer import dynamic_import
 from griffe.logger import get_logger
@@ -417,13 +419,13 @@ class Inspector:
             returns = None
         else:
             parameters = Parameters(
-                *[_convert_parameter(parameter, parent=self.current) for parameter in signature.parameters.values()],
+                *[convert_parameter(parameter, parent=self.current) for parameter in signature.parameters.values()],
             )
             return_annotation = signature.return_annotation
             returns = (
                 None
                 if return_annotation is empty
-                else _convert_object_to_annotation(return_annotation, parent=self.current)
+                else convert_object_to_annotation(return_annotation, parent=self.current)
             )
 
         lineno, endlineno = self._get_linenos(node)
@@ -521,10 +523,19 @@ _kind_map = {
 }
 
 
-def _convert_parameter(parameter: SignatureParameter, parent: Module | Class) -> Parameter:
+def convert_parameter(parameter: SignatureParameter, parent: Module | Class) -> Parameter:
+    """Convert a runtime parameter to a Griffe parameter.
+
+    Parameters:
+        parameter: The parameter to convert.
+        parent: The parent of the function the parameter appears in.
+
+    Returns:
+        The Griffe parameter.
+    """
     name = parameter.name
     annotation = (
-        None if parameter.annotation is empty else _convert_object_to_annotation(parameter.annotation, parent=parent)
+        None if parameter.annotation is empty else convert_object_to_annotation(parameter.annotation, parent=parent)
     )
     kind = _kind_map[parameter.kind]
     if parameter.default is empty:
@@ -537,7 +548,16 @@ def _convert_parameter(parameter: SignatureParameter, parent: Module | Class) ->
     return Parameter(name, annotation=annotation, kind=kind, default=default)
 
 
-def _convert_object_to_annotation(obj: Any, parent: Module | Class) -> str | Expr | None:
+def convert_object_to_annotation(obj: Any, parent: Module | Class) -> str | Expr | None:
+    """Convert a runtime object to a Griffe annotation expression.
+
+    Parameters:
+        obj: The object to convert.
+        parent: The parent class or module the object annotation appears in.
+
+    Returns:
+        The Griffe annotation expression.
+    """
     # even when *we* import future annotations,
     # the object from which we get a signature
     # can come from modules which did *not* import them,
@@ -557,4 +577,28 @@ def _convert_object_to_annotation(obj: Any, parent: Module | Class) -> str | Exp
     return safe_get_annotation(annotation_node.body, parent=parent)  # type: ignore[attr-defined]
 
 
-__all__ = ["inspect", "Inspector"]
+def convert_function(func: Callable, parent: Module | Class | None = None) -> Function:
+    """Convert a runtime function to a Griffe function.
+
+    Parameters:
+        func: The function to convert.
+        parent: The parent of the function.
+
+    Returns:
+        The Griffe function.
+    """
+    parent = parent or Module("__griffe_helpers__")
+    sig = signature(func)
+    parameters = [convert_parameter(parameter, parent=parent) for parameter in sig.parameters.values()]
+    return_annotation = sig.return_annotation
+    returns = None if return_annotation is empty else convert_object_to_annotation(return_annotation, parent=parent)
+    return Function(func.__name__, parameters=Parameters(*parameters), returns=returns)
+
+
+__all__ = [
+    "convert_parameter",
+    "convert_object_to_annotation",
+    "convert_function",
+    "inspect",
+    "Inspector",
+]

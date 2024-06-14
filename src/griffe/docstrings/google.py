@@ -182,6 +182,7 @@ def _read_parameters(
     *,
     offset: int,
     warn_unknown_params: bool = True,
+    warn_no_types: bool = True,
     **options: Any,
 ) -> tuple[list[DocstringParameter], int]:
     parameters = []
@@ -220,7 +221,7 @@ def _read_parameters(
         except (AttributeError, KeyError):
             default = None
 
-        if annotation is None:
+        if annotation is None and warn_no_types:
             _warn(docstring, line_number, f"No type or annotation for parameter '{name}'")
 
         if warn_unknown_params:
@@ -430,6 +431,7 @@ def _read_returns_section(
     offset: int,
     returns_multiple_items: bool = True,
     returns_named_value: bool = True,
+    warn_no_types: bool = True,
     **options: Any,
 ) -> tuple[DocstringSectionReturns | None, int]:
     returns = []
@@ -488,7 +490,8 @@ def _read_returns_section(
 
             if annotation is None:
                 returned_value = repr(name) if name else index + 1
-                _warn(docstring, line_number, f"No type or annotation for returned value {returned_value}")
+                if warn_no_types:
+                    _warn(docstring, line_number, f"No type or annotation for returned value {returned_value}")
 
         returns.append(DocstringReturn(name=name or "", annotation=annotation, description=description))
 
@@ -499,6 +502,7 @@ def _read_yields_section(
     docstring: Docstring,
     *,
     offset: int,
+    warn_no_types: bool = True,
     **options: Any,
 ) -> tuple[DocstringSectionYields | None, int]:
     yields = []
@@ -535,7 +539,8 @@ def _read_yields_section(
 
             if annotation is None:
                 yielded_value = repr(name) if name else index + 1
-                _warn(docstring, line_number, f"No type or annotation for yielded value {yielded_value}")
+                if warn_no_types:
+                    _warn(docstring, line_number, f"No type or annotation for yielded value {yielded_value}")
 
         yields.append(DocstringYield(name=name or "", annotation=annotation, description=description))
 
@@ -546,6 +551,7 @@ def _read_receives_section(
     docstring: Docstring,
     *,
     offset: int,
+    warn_no_types: bool = True,
     **options: Any,
 ) -> tuple[DocstringSectionReceives | None, int]:
     receives = []
@@ -578,7 +584,8 @@ def _read_receives_section(
 
         if annotation is None:
             received_value = repr(name) if name else index + 1
-            _warn(docstring, line_number, f"No type or annotation for received value {received_value}")
+            if warn_no_types:
+                _warn(docstring, line_number, f"No type or annotation for received value {received_value}")
 
         receives.append(DocstringReceive(name=name or "", annotation=annotation, description=description))
 
@@ -688,8 +695,6 @@ _section_reader = {
     DocstringSectionKind.deprecated: _read_deprecated_section,
 }
 
-_sentinel = object()
-
 
 def parse(
     docstring: Docstring,
@@ -698,6 +703,7 @@ def parse(
     trim_doctest_flags: bool = True,
     returns_multiple_items: bool = True,
     warn_unknown_params: bool = True,
+    warn_no_types: bool = True,
     returns_named_value: bool = True,
     returns_type_in_property_summary: bool = False,
     **options: Any,
@@ -713,6 +719,7 @@ def parse(
         trim_doctest_flags: Whether to remove doctest flags from Python example blocks.
         returns_multiple_items: Whether the `Returns` section has multiple items.
         warn_unknown_params: Warn about documented parameters not appearing in the signature.
+        warn_no_types: Warn about missing types or annotations for parameters.
         returns_named_value: Whether to parse `thing: Description` in returns sections as a name and description,
             rather than a type and description. When true, type must be wrapped in parentheses: `(int): Description.`.
             When false, parentheses are optional but the items cannot be named: `int: Description`.
@@ -734,6 +741,7 @@ def parse(
         "trim_doctest_flags": trim_doctest_flags,
         "returns_multiple_items": returns_multiple_items,
         "warn_unknown_params": warn_unknown_params,
+        "warn_no_types": warn_no_types,
         "returns_named_value": returns_named_value,
         "returns_type_in_property_summary": returns_type_in_property_summary,
         **options,

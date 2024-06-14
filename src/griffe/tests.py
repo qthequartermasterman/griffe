@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING, Any, Iterator, Mapping, Sequence
 
 from griffe.agents.inspector import inspect
 from griffe.agents.visitor import visit
-from griffe.collections import LinesCollection
+from griffe.collections import LinesCollection, ModulesCollection
 from griffe.dataclasses import Module, Object
+from griffe.extensions.base import Extensions
 from griffe.loader import GriffeLoader
 
 if TYPE_CHECKING:
