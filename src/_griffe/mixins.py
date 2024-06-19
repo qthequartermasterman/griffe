@@ -330,8 +330,43 @@ class ObjectAliasMixin(GetMembersMixin, SetMembersMixin, DelMembersMixin, Serial
 
     @property
     def has_private_name(self) -> bool:
-        """Whether this object/alias has a private name."""
+        """Deprecated. Use [`is_private`][griffe.Object.is_private] instead."""
+        warnings.warn(
+            "The `has_private_name` property is deprecated. Use `is_private` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.name.startswith("_")  # type: ignore[attr-defined]
+
+    @property
+    def has_special_name(self) -> bool:
+        """Deprecated. Use [`is_special`][griffe.Object.is_special] instead."""
+        warnings.warn(
+            "The `has_special_name` property is deprecated. Use `is_special` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.name.startswith("__") and self.name.endswith("__")  # type: ignore[attr-defined]
+
+    @property
+    def is_private(self) -> bool:
+        """Whether this object/alias is private (starts with `_`) but not special."""
+        return self.name.startswith("_") and not self.is_special  # type: ignore[attr-defined]
+
+    @property
+    def is_special(self) -> bool:
+        """Whether this object/alias is special ("dunder" attribute/method, starts and end with `__`)."""
+        return self.name.startswith("__") and self.name.endswith("__")  # type: ignore[attr-defined]
+
+    @property
+    def is_class_private(self) -> bool:
+        """Whether this object/alias is class-private (starts with `__` and is a class member)."""
+        return self.parent and self.parent.is_class and self.name.startswith("__") and not self.name.endswith("__")  # type: ignore[attr-defined]
+
+    @property
+    def is_imported(self) -> bool:
+        """Whether this object/alias was imported from another module."""
+        return self.parent and self.name in self.parent.imports  # type: ignore[attr-defined]
 
     @property
     def is_exported(self) -> bool:
@@ -375,13 +410,21 @@ class ObjectAliasMixin(GetMembersMixin, SetMembersMixin, DelMembersMixin, Serial
         Returns:
             True or False.
         """
+        # If the object is not available at runtime or is not defined at the module level, it is not exposed.
         if not self.runtime or not self.parent.is_module:  # type: ignore[attr-defined]
             return False
+
+        # If the parent module defines `__all__`, the object is exposed if it is listed in it.
         if self.parent.exports is not None:  # type: ignore[attr-defined]
             return self.name in self.parent.exports  # type: ignore[attr-defined]
-        if self.has_private_name:
+
+        # If the object's name starts with an underscore, it is not exposed.
+        # We don't use `is_private` or `is_special` here to avoid redundant string checks.
+        if self.name.startswith("_"):  # type: ignore[attr-defined]
             return False
-        return self.is_alias or not self.is_module or self.name in self.parent.imports  # type: ignore[attr-defined]
+
+        # Special case for Griffe trees: a submodule is only exposed if its parent imports it.
+        return self.is_alias or not self.is_module or self.is_imported  # type: ignore[attr-defined]
 
     @property
     def is_public(self) -> bool:
@@ -399,19 +442,37 @@ class ObjectAliasMixin(GetMembersMixin, SetMembersMixin, DelMembersMixin, Serial
         - Otherwise, the object is public.
         """
         # TODO: Return regular True/False values in next version.
+
+        # Give priority to the `public` attribute if it is set.
         if self.public is not None:  # type: ignore[attr-defined]
             return _True if self.public else _False  # type: ignore[return-value,attr-defined]
-        if self.is_wildcard_exposed:
-            return _True  # type: ignore[return-value]
-        if self.has_private_name:
+
+        # If the object is defined at the module-level and is listed in `__all__`, it is public.
+        # If the parent module defines `__all__` but does not list the object, it is private.
+        if self.parent and self.parent.is_module and bool(self.parent.exports):  # type: ignore[attr-defined]
+            return _True if self.name in self.parent.exports else _False  # type: ignore[attr-defined,return-value]
+
+        # Special objects are always considered public.
+        # Even if we don't access them directly, they are used through different *public* means
+        # like instantiating classes (`__init__`), using operators (`__eq__`), etc..
+        if self.is_private:
             return _False  # type: ignore[return-value]
-        # The following condition effectively filters out imported objects.
+
         # TODO: In a future version, we will support two conventions regarding imports:
         # - `from a import x as x` marks `x` as public.
         # - `from a import *` marks all wildcard imported objects as public.
+        # The following condition effectively filters out imported objects.
         if self.is_alias and not (self.inherited or (self.parent and self.parent.is_alias)):  # type: ignore[attr-defined]
             return _False  # type: ignore[return-value]
+
+        # If we reached this point, the object is public.
         return _True  # type: ignore[return-value]
+
+    @property
+    def is_deprecated(self) -> bool:
+        """Whether this object is deprecated."""
+        # NOTE: We might want to add more ways to detect deprecations in the future.
+        return bool(self.deprecated)  # type: ignore[attr-defined]
 
 
 # This is used to allow the `is_public` property to be "callable",
@@ -422,6 +483,9 @@ class _Bool:
 
     def __bool__(self) -> bool:
         return self.value
+
+    def __repr__(self) -> str:
+        return repr(self.value)
 
     def __call__(self, *args: Any, **kwargs: Any) -> bool:  # noqa: ARG002
         warnings.warn(

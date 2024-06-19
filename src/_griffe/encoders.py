@@ -55,11 +55,11 @@ class JSONEncoder(json.JSONEncoder):
     the [`json.dump`][] or [`json.dumps`][] methods.
 
     Examples:
-        >>> from _griffe.encoders import JSONEncoder
+        >>> from griffe import JSONEncoder
         >>> JSONEncoder(full=True).encode(..., **kwargs)
 
         >>> import json
-        >>> from _griffe.encoders import JSONEncoder
+        >>> from griffe import JSONEncoder
         >>> json.dumps(..., cls=JSONEncoder, full=True, **kwargs)
     """
 
@@ -147,6 +147,7 @@ def _load_parameter(obj_dict: dict[str, Any]) -> Parameter:
         annotation=obj_dict["annotation"],
         kind=ParameterKind(obj_dict["kind"]),
         default=obj_dict["default"],
+        docstring=_load_docstring(obj_dict),
     )
 
 
