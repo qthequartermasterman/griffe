@@ -371,7 +371,9 @@ class ObjectAliasMixin(GetMembersMixin, SetMembersMixin, DelMembersMixin, Serial
     @property
     def is_exported(self) -> bool:
         """Whether this object/alias is exported (listed in `__all__`)."""
+        # YORE: Bump 1.0.0: Replace `result =` with `return` within line.
         result = self.parent.is_module and bool(self.parent.exports and self.name in self.parent.exports)  # type: ignore[attr-defined]
+        # YORE: Bump 1.0.0: Remove line.
         return _True if result else _False  # type: ignore[return-value]
 
     @property
@@ -445,17 +447,20 @@ class ObjectAliasMixin(GetMembersMixin, SetMembersMixin, DelMembersMixin, Serial
 
         # Give priority to the `public` attribute if it is set.
         if self.public is not None:  # type: ignore[attr-defined]
+            # YORE: Bump 1.0.0: Replace line with `return self.public`.
             return _True if self.public else _False  # type: ignore[return-value,attr-defined]
 
         # If the object is defined at the module-level and is listed in `__all__`, it is public.
         # If the parent module defines `__all__` but does not list the object, it is private.
         if self.parent and self.parent.is_module and bool(self.parent.exports):  # type: ignore[attr-defined]
+            # YORE: Bump 1.0.0: Replace line with `return self.name in self.parent.exports`.
             return _True if self.name in self.parent.exports else _False  # type: ignore[attr-defined,return-value]
 
         # Special objects are always considered public.
         # Even if we don't access them directly, they are used through different *public* means
         # like instantiating classes (`__init__`), using operators (`__eq__`), etc..
         if self.is_private:
+            # YORE: Bump 1.0.0: Replace line with `return False`.
             return _False  # type: ignore[return-value]
 
         # TODO: In a future version, we will support two conventions regarding imports:
@@ -463,9 +468,11 @@ class ObjectAliasMixin(GetMembersMixin, SetMembersMixin, DelMembersMixin, Serial
         # - `from a import *` marks all wildcard imported objects as public.
         # The following condition effectively filters out imported objects.
         if self.is_alias and not (self.inherited or (self.parent and self.parent.is_alias)):  # type: ignore[attr-defined]
+            # YORE: Bump 1.0.0: Replace line with `return False`.
             return _False  # type: ignore[return-value]
 
         # If we reached this point, the object is public.
+        # YORE: Bump 1.0.0: Replace line with `return True`.
         return _True  # type: ignore[return-value]
 
     @property
@@ -477,6 +484,7 @@ class ObjectAliasMixin(GetMembersMixin, SetMembersMixin, DelMembersMixin, Serial
 
 # This is used to allow the `is_public` property to be "callable",
 # for backward compatibility with the previous implementation.
+# YORE: Bump 1.0.0: Remove block.
 class _Bool:
     def __init__(self, value: bool) -> None:  # noqa: FBT001
         self.value = value
@@ -496,5 +504,6 @@ class _Bool:
         return self.value
 
 
+# YORE: Bump 1.0.0: Remove block.
 _True = _Bool(True)  # noqa: FBT003
 _False = _Bool(False)  # noqa: FBT003

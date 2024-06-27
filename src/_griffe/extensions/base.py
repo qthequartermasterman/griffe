@@ -459,20 +459,20 @@ def _load_extension(
 
 
 def load_extensions(
-    # TODO: Only accept LoadableExtension at some point.
+    # YORE: Bump 1.0.0: Replace ` | Sequence[LoadableExtension],` with `` within line.
     *exts: LoadableExtensionType | Sequence[LoadableExtensionType],
 ) -> Extensions:
     """Load configured extensions.
 
     Parameters:
-        exts: A sequence of extension, with potential configuration options.
+        exts: Extensions with potential configuration options.
 
     Returns:
         An extensions container.
     """
     extensions = Extensions()
 
-    # TODO: Remove at some point.
+    # YORE: Bump 1.0.0: Remove block.
     all_exts: list[LoadableExtensionType] = []
     for ext in exts:
         if isinstance(ext, (list, tuple)):
@@ -486,6 +486,7 @@ def load_extensions(
         else:
             all_exts.append(ext)  # type: ignore[arg-type]
 
+    # YORE: Bump 1.0.0: Replace `all_exts` with `exts` within line.
     for extension in all_exts:
         ext = _load_extension(extension)
         if isinstance(ext, list):

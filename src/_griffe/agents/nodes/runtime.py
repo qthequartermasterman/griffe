@@ -17,8 +17,11 @@ _cyclic_relationships = {
     ("os", "nt"),
     ("os", "posix"),
     ("numpy.core._multiarray_umath", "numpy.core.multiarray"),
-    ("pymmcore._pymmcore_swig", "pymmcore.pymmcore_swig"),
 }
+
+
+def _same_components(a: str, b: str, /) -> bool:
+    return [cpn.lstrip("_") for cpn in a.split(".")] == [cpn.lstrip("_") for cpn in b.split(".")]
 
 
 class ObjectNode:
@@ -253,10 +256,10 @@ class ObjectNode:
             return None
 
         # If the current object was declared in the same module as its parent,
-        # or in a module with the same name but starting/not starting with an underscore,
-        # we don't want to alias it. Examples: (a, a), (a, _a), (_a, a), (_a, _a).
-        # TODO: Use `removeprefix` when we drop Python 3.8.
-        if parent_module_path.lstrip("_") == child_module_path.lstrip("_"):
+        # or in a module with the same path components but starting/not starting with underscores,
+        # we don't want to alias it. Examples: (a, a), (a, _a), (_a, a), (_a, _a),
+        # (a.b, a.b), (a.b, _a.b), (_a._b, a.b), (a._b, _a.b), etc..
+        if _same_components(parent_module_path, child_module_path):
             return None
 
         # If the current object was declared in any other module, we alias it.
@@ -269,5 +272,5 @@ class ObjectNode:
             child_module_path = child_module_path.lstrip("_")
         if self.is_module:
             return child_module_path
-        child_name = getattr(self.obj, "__name__", self.name)
+        child_name = getattr(self.obj, "__qualname__", self.path[len(self.module.path) + 1 :])
         return f"{child_module_path}.{child_name}"

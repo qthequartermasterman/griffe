@@ -16,7 +16,7 @@ from _griffe.exceptions import GitError
 _WORKTREE_PREFIX = "griffe-worktree-"
 
 
-# TODO: Remove at some point.
+# YORE: Bump 1.0.0: Remove block.
 def __getattr__(name: str) -> Any:
     if name == "load_git":
         warnings.warn(
